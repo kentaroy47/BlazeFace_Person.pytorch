@@ -149,7 +149,24 @@ class BlazeFaceExtra(nn.Module):
     def forward(self, x):
         h = self.features(x)
         return h
-
+    
+class BlazeFaceExtra2(nn.Module):
+    """Constructs a BlazeFace model
+    the original paper
+    https://sites.google.com/view/perception-cv4arvr/blazeface
+    """
+    def __init__(self):
+        super(BlazeFaceExtra2, self).__init__()
+            # input..128x128
+        self.features = nn.Sequential(
+                BlazeBlock(96, 24, 192, stride=2), # pix=8
+                BlazeBlock(192, 24, 192),
+                BlazeBlock(192, 24, 192)
+        )
+        self.apply(initialize)
+    def forward(self, x):
+        h = self.features(x)
+        return h
 
 # In[5]:
 
@@ -184,6 +201,34 @@ def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6]):
                 ]
     conf_layers += [nn.Sequential(
                 nn.Conv2d(96, 192, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(192, bbox_aspect_num[1] * num_classes, kernel_size=3, padding=1))
+                ]
+    return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
+
+def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6]):
+    loc_layers = []
+    conf_layers = []
+    
+    # added more layers.
+    loc_layers += [nn.Sequential(
+                nn.Conv2d(96, 192, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(192, bbox_aspect_num[0] * 4, kernel_size=3, padding=1))
+                ]
+    conf_layers += [nn.Sequential(
+                nn.Conv2d(96, 192, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(192, bbox_aspect_num[0] * num_classes, kernel_size=3, padding=1))]
+    
+    # 
+    loc_layers += [nn.Sequential(
+                nn.Conv2d(192, 192, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(192, bbox_aspect_num[1] * 4, kernel_size=3, padding=1))
+                ]
+    conf_layers += [nn.Sequential(
+                nn.Conv2d(192, 192, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(192, bbox_aspect_num[1] * num_classes, kernel_size=3, padding=1))
                 ]
@@ -478,7 +523,7 @@ class SSD(nn.Module):
         self.blaze = BlazeFace()
         self.extra = BlazeFaceExtra()
         # self.L2Norm = L2Norm()
-        self.loc, self.conf = make_loc_conf(self.num_classes, cfg["bbox_aspect_num"])
+        self.loc, self.conf = make_loc_conf256(self.num_classes, cfg["bbox_aspect_num"])
         
         # make Dbox
         dbox = DBox(cfg)
@@ -530,16 +575,70 @@ class SSD(nn.Module):
         else:
             return output
 
-
-# In[15]:
-
-
-net = SSD("train", ssd_cfg)
-print(net)
-
-
-# In[ ]:
-
+class SSD256(nn.Module):
+    def __init__(self, phase, cfg):
+        super(SSD256, self).__init__()
+        
+        self.phase = phase
+        self.num_classes = cfg["num_classes"]
+        
+        # call SSD network
+        self.blaze = BlazeFace()
+        self.extra = BlazeFaceExtra()
+        self.extra2 = BlazeFaceExtra2()
+        # self.L2Norm = L2Norm()
+        self.loc, self.conf = make_loc_conf256(self.num_classes, cfg["bbox_aspect_num"])
+        
+        # make Dbox
+        dbox = DBox(cfg)
+        self.dbox_list = dbox.make_dbox_list()
+        
+        # use Detect if inference
+        if phase == "inference":
+            self.detect = Detect()
+            
+    def forward(self, x):
+        sources = list()
+        loc = list()
+        conf = list()
+        
+        # compute blazeface block
+        x = self.blaze(x)
+        # compute extra block
+        x = self.extra(x)
+        sources.append(x)
+        x = self.extra2(x)
+        sources.append(x)
+        
+        # compute loc and cof
+        for (x, l, c) in zip(sources, self.loc, self.conf):
+            # Permuteは要素の順番を入れ替え
+            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
+            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
+        
+        # convの出力は[batch, 4*anker, fh, fw]なので整形しなければならない。
+        # まず[batch, fh, fw, anker]に整形
+        
+        # locとconfの形を変形
+        # locのサイズは、torch.Size([batch_num, 34928])
+        # confのサイズはtorch.Size([batch_num, 183372])になる
+        loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
+        conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
+        
+        # さらにlocとconfの形を整える
+        # locのサイズは、torch.Size([batch_num, 8732, 4])
+        # confのサイズは、torch.Size([batch_num, 8732, 21])
+        loc = loc.view(loc.size(0), -1, 4)
+        conf = conf.view(conf.size(0), -1, self.num_classes)
+        # これで後段の処理につっこめるかたちになる。
+        
+        output = (loc, conf, self.dbox_list)
+        
+        if self.phase == "inference":
+            # Detectのforward
+            return self.detect(output[0], output[1], output[2])
+        else:
+            return output
 
 
 
