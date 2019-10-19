@@ -159,9 +159,9 @@ class BlazeFaceExtra2(nn.Module):
         super(BlazeFaceExtra2, self).__init__()
             # input..128x128
         self.features = nn.Sequential(
-                BlazeBlock(96, 24, 192, stride=2), # pix=8
-                BlazeBlock(192, 24, 192),
-                BlazeBlock(192, 24, 192)
+                BlazeBlock(96, 48, 192, stride=2), # pix=8
+                BlazeBlock(192, 48, 192),
+                BlazeBlock(192, 48, 192)
         )
         self.apply(initialize)
     def forward(self, x):
@@ -183,27 +183,14 @@ def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6]):
     conf_layers = []
     
     # added more layers.
-    loc_layers += [nn.Sequential(
-                nn.Conv2d(96, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[0] * 4, kernel_size=3, padding=1))
+    loc_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[0]*4))
                 ]
-    conf_layers += [nn.Sequential(
-                nn.Conv2d(96, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[0] * num_classes, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[0]*num_classes))]
     
     # 
-    loc_layers += [nn.Sequential(
-                nn.Conv2d(96, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[1] * 4, kernel_size=3, padding=1))
+    loc_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[1]*4))
                 ]
-    conf_layers += [nn.Sequential(
-                nn.Conv2d(96, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[1] * num_classes, kernel_size=3, padding=1))
-                ]
+    conf_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[1]*num_classes))]
     return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
 
 def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6]):
