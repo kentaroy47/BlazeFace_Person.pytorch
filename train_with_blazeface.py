@@ -45,7 +45,7 @@ train_dataset = VOCDataset(train_img_list, train_anno_list, phase = "train", tra
 val_dataset = VOCDataset(val_img_list, val_anno_list, phase="val", transform=DatasetTransform(
     input_size, color_mean), transform_anno=Anno_xml2list(voc_classes))
 
-batch_size = 32
+batch_size = 64
 
 train_dataloader = data.DataLoader(
     train_dataset, batch_size=batch_size, shuffle=True, collate_fn=od_collate_fn, num_workers=8)
@@ -90,7 +90,7 @@ ssd_cfg = {
     'input_size': 128,  # 画像の入力サイズ
     'bbox_aspect_num': [4, 6],  # 出力するDBoxのアスペクト比の種類
     'feature_maps': [16, 8],  # 各sourceの画像サイズ
-    'steps': [8, 16],  # DBOXの大きさを決める
+    'steps': [4, 8],  # DBOXの大きさを決める
     'min_sizes': [30, 60],  # DBOXの大きさを決める
     'max_sizes': [60, 128],  # DBOXの大きさを決める
     'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
@@ -129,7 +129,7 @@ print(net)
 from utils.ssd_model import MultiBoxLoss
 
 # define loss
-criterion = MultiBoxLoss(jaccard_thresh=0.5,neg_pos=3, device=device)
+criterion = MultiBoxLoss(jaccard_thresh=0.5,neg_pos=2, device=device)
 
 # optim
 import torch.optim as optim
@@ -137,6 +137,23 @@ optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4
 
 
 # In[9]:
+
+
+def get_current_lr(epoch):
+    lr = 1e-3
+    for i,lr_decay_epoch in enumerate([120,180]):
+        if epoch >= lr_decay_epoch:
+            lr *= 0.1
+    return lr
+
+def adjust_learning_rate(optimizer, epoch):
+    lr = get_current_lr(epoch)
+    print("lr is:", lr)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+
+# In[10]:
 
 
 # モデルを学習させる関数を作成
@@ -160,7 +177,9 @@ def train_model(net, dataloaders_dict, criterion, optimizer, num_epochs):
 
     # epochのループ
     for epoch in range(num_epochs+1):
-
+        
+        adjust_learning_rate(optimizer, epoch)
+        
         # 開始時刻を保存
         t_epoch_start = time.time()
         t_iter_start = time.time()
@@ -258,6 +277,12 @@ def train_model(net, dataloaders_dict, criterion, optimizer, num_epochs):
 
 num_epochs = 200
 train_model(net, dataloaders_dict, criterion, optimizer, num_epochs=num_epochs)
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
