@@ -183,14 +183,13 @@ def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6]):
     conf_layers = []
     
     # added more layers.
-    loc_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[0]*4))
-                ]
-    conf_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[0]*num_classes))]
+    loc_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*num_classes, kernel_size=3, padding=1))]
     
     # 
-    loc_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[1]*4))
-                ]
-    conf_layers += [nn.Sequential(BlazeBlock(96, 24, bbox_aspect_num[1]*num_classes))]
+    loc_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[1]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[1]*num_classes, kernel_size=3, padding=1))]
+    
     return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
 
 def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6]):
@@ -221,12 +220,6 @@ def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6]):
                 ]
     return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
 
-loc_test, conf_test = make_loc_conf()
-print(loc_test)
-print(conf_test)
-
-
-# In[7]:
 
 
 # binding boxを出力するクラス
@@ -278,36 +271,6 @@ class DBox(object):
         output.clamp_(max=1, min=0)
         
         return output
-                    
-                
-        
-
-
-# # ssd-like
-
-# In[16]:
-
-
-# SSD-like config
-ssd_cfg = {
-    'num_classes': 2,  # 背景クラスを含めた合計クラス数
-    'input_size': 128,  # 画像の入力サイズ
-    'bbox_aspect_num': [4, 6],  # 出力するDBoxのアスペクト比の種類
-    'feature_maps': [16, 8],  # 各sourceの画像サイズ
-    'steps': [8, 16],  # DBOXの大きさを決める
-    'min_sizes': [30, 60],  # DBOXの大きさを決める
-    'max_sizes': [60, 128],  # DBOXの大きさを決める
-    'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
-}
-
-dbox = DBox(ssd_cfg)
-dbox_list = dbox.make_dbox_list()
-
-pd.DataFrame(dbox_list.numpy())
-
-
-# In[9]:
-
 
 def nms(boxes, scores, overlap=0.45, top_k=200):
     """
@@ -510,7 +473,7 @@ class SSD(nn.Module):
         self.blaze = BlazeFace()
         self.extra = BlazeFaceExtra()
         # self.L2Norm = L2Norm()
-        self.loc, self.conf = make_loc_conf256(self.num_classes, cfg["bbox_aspect_num"])
+        self.loc, self.conf = make_loc_conf(self.num_classes, cfg["bbox_aspect_num"])
         
         # make Dbox
         dbox = DBox(cfg)
