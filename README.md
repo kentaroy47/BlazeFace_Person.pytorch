@@ -1,3 +1,7 @@
+![person1](./sample/img.png)
+
+![person2](./sample/img2.png)
+
 # BlazeFace_person_pytorch
 blazeface trained on pascal_voc person.
 

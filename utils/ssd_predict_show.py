@@ -18,7 +18,7 @@ class SSDPredictShow():
         self.net = net  # SSDネットワーク
 
         color_mean = (104, 117, 123)  # (BGR)の色の平均値
-        input_size = 300  # 画像のinputサイズを300×300にする
+        input_size = 128  # 画像のinputサイズを300×300にする
         self.transform = DataTransform(input_size, color_mean)  # 前処理クラス
 
     def show(self, image_file_path, data_confidence_level):

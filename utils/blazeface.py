@@ -340,8 +340,8 @@ def nms(boxes, scores, overlap=0.45, top_k=200):
         tmp_y2 = torch.clamp(tmp_y2, min=y2[i])
         
         # wとhのテンソルサイズをindex一つ減らしたものにする
-        tmp_w.resize_as_(temp_x2)
-        tmp_h.resize_as_(temp_y2)
+        tmp_w.resize_as_(tmp_x2)
+        tmp_h.resize_as_(tmp_y2)
         
         # clampした状態の高さ、幅を求める
         tmp_w = tmp_x2 - tmp_x1
@@ -394,12 +394,14 @@ class Detect(Function):
         output = torch.zeros(num_batch, num_classes, self.top_k, 5)
         
         # conf_dataを[batch, 8732, classes]から[batch, classes, 8732]に変更
-        conf_preds = conf_data.tranpose(2, 1)
+        conf_preds = conf_data.transpose(2, 1)
         
         # batch毎にループ
         for i in range(num_batch):
             # 1. LocとDBoxからBBox情報に変換
-            decoded_boxes = decode(loc_data, dbox_list)
+            print("loc", loc_data.shape)
+            print("box", dbox_list.shape)
+            decoded_boxes = decode(loc_data[i], dbox_list)
             
             # confのコピー
             conf_scores = conf_preds[i].clone()
@@ -432,8 +434,26 @@ class Detect(Function):
                 
         return output # torch.size([batch, 21, 200, 5])
 
-
-# In[11]:
+def decode(loc, dbox_list):
+    """
+    DBox(cx,cy,w,h)から回帰情報のΔを使い、
+    BBox(xmin,ymin,xmax,ymax)方式に変換する。
+    
+    loc: [8732, 4] [Δcx, Δcy, Δw, Δheight]
+    SSDのオフセットΔ情報
+    
+    dbox_list: (cx,cy,w,h)
+    """
+    
+    boxes = torch.cat((
+    dbox_list[:, :2] + loc[:, :2] * 0.1 * dbox_list[:, :2],
+    dbox_list[:, 2:] * torch.exp(loc[:, 2:] * 0.2)), dim=1)
+    
+    # convert boxes to (xmin,ymin,xmax,ymax)
+    boxes[:, :2] -= boxes[:, 2:] / 2
+    boxes[:, 2:] += boxes[:, :2]
+    
+    return boxes
 
 
 class SSD(nn.Module):
