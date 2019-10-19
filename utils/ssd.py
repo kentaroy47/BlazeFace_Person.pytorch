@@ -240,38 +240,6 @@ class DBox(object):
         output.clamp_(max=1, min=0)
         
         return output
-                    
-                
-        
-
-
-# In[9]:
-
-
-# test boxes
-
-# SSD300の設定
-ssd_cfg = {
-    'num_classes': 21,  # 背景クラスを含めた合計クラス数
-    'input_size': 300,  # 画像の入力サイズ
-    'bbox_aspect_num': [4, 6, 6, 6, 4, 4],  # 出力するDBoxのアスペクト比の種類
-    'feature_maps': [38, 19, 10, 5, 3, 1],  # 各sourceの画像サイズ
-    'steps': [8, 16, 32, 64, 100, 300],  # DBOXの大きさを決める
-    'min_sizes': [30, 60, 111, 162, 213, 264],  # DBOXの大きさを決める
-    'max_sizes': [60, 111, 162, 213, 264, 315],  # DBOXの大きさを決める
-    'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
-}
-
-dbox = DBox(ssd_cfg)
-dbox_list = dbox.make_dbox_list()
-
-pd.DataFrame(dbox_list.numpy())
-
-
-# # SSDクラスを実装する
-
-# In[10]:
-
 
 class SSD2(nn.Module):
     def __init__(self, phase, cfg):
@@ -295,8 +263,7 @@ class SSD2(nn.Module):
             self.detect = Detect()
 
 # check operation
-ssd_test = SSD2(phase="train", cfg=ssd_cfg)
-print(ssd_test)
+
 
 
 # In[27]:
@@ -323,21 +290,6 @@ def decode(loc, dbox_list):
     
     return boxes
 
-# test
-dbox = DBox(ssd_cfg)
-dbox_list = dbox.make_dbox_list()
-print(dbox_list.size())
-
-loc = torch.ones(8732, 4)
-loc[0, :] = torch.tensor([-10, 0, 1, 1])
-print(loc.size())
-
-dbox_process = decode(loc, dbox_list)
-
-pd.DataFrame(dbox_process.numpy())
-
-
-# In[32]:
 
 
 def nms(boxes, scores, overlap=0.45, top_k=200):

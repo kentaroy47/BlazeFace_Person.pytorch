@@ -45,7 +45,7 @@ train_dataset = VOCDataset(train_img_list, train_anno_list, phase = "train", tra
 val_dataset = VOCDataset(val_img_list, val_anno_list, phase="val", transform=DatasetTransform(
     input_size, color_mean), transform_anno=Anno_xml2list(voc_classes))
 
-batch_size = 8
+batch_size = 32
 
 train_dataloader = data.DataLoader(
     train_dataset, batch_size=batch_size, shuffle=True, collate_fn=od_collate_fn, num_workers=8)
