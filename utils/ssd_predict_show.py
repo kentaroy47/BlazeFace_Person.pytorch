@@ -13,12 +13,11 @@ from utils.ssd_model import DataTransform
 class SSDPredictShow():
     """SSDでの予測と画像の表示をまとめて行うクラス"""
 
-    def __init__(self, eval_categories, net):
+    def __init__(self, eval_categories, net, input_size=128):
         self.eval_categories = eval_categories  # クラス名
         self.net = net  # SSDネットワーク
 
         color_mean = (104, 117, 123)  # (BGR)の色の平均値
-        input_size = 128  # 画像のinputサイズを300×300にする
         self.transform = DataTransform(input_size, color_mean)  # 前処理クラス
 
     def show(self, image_file_path, data_confidence_level):

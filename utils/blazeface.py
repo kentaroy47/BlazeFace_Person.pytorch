@@ -197,27 +197,13 @@ def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6]):
     conf_layers = []
     
     # added more layers.
-    loc_layers += [nn.Sequential(
-                nn.Conv2d(96, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[0] * 4, kernel_size=3, padding=1))
-                ]
-    conf_layers += [nn.Sequential(
-                nn.Conv2d(96, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[0] * num_classes, kernel_size=3, padding=1))]
+    loc_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*num_classes, kernel_size=3, padding=1))]
     
     # 
-    loc_layers += [nn.Sequential(
-                nn.Conv2d(192, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[1] * 4, kernel_size=3, padding=1))
-                ]
-    conf_layers += [nn.Sequential(
-                nn.Conv2d(192, 192, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(192, bbox_aspect_num[1] * num_classes, kernel_size=3, padding=1))
-                ]
+    loc_layers += [nn.Sequential(nn.Conv2d(192, bbox_aspect_num[1]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(192, bbox_aspect_num[1]*num_classes, kernel_size=3, padding=1))]
+                
     return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
 
 
