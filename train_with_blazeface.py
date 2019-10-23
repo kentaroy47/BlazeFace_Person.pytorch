@@ -30,7 +30,7 @@ from utils.dataset import VOCDataset, DatasetTransform, make_datapath_list, Anno
 
 # load files
 vocpath = os.path.join("..", "VOCdevkit", "VOC2007")
-train_img_list, train_anno_list, val_img_list, val_anno_list = make_datapath_list(vocpath, cls="person")
+train_img_list, train_anno_list, val_img_list, val_anno_list = make_datapath_list(vocpath, cls="person", inc_negative=False)
 
 # make Dataset
 voc_classes = ['person']
@@ -96,7 +96,8 @@ ssd_cfg = {
     'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
 }
 
-net = SSD(phase="train", cfg=ssd_cfg)
+# default channels are 24.
+net = SSD(phase="train", cfg=ssd_cfg, channels=48)
 
 # SSDのweightsを設定
 
@@ -129,7 +130,7 @@ print(net)
 from utils.ssd_model import MultiBoxLoss
 
 # define loss
-criterion = MultiBoxLoss(jaccard_thresh=0.5,neg_pos=2, device=device)
+criterion = MultiBoxLoss(jaccard_thresh=0.5,neg_pos=4, device=device)
 
 # optim
 import torch.optim as optim

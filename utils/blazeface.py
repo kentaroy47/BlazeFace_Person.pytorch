@@ -101,27 +101,28 @@ class BlazeFace(nn.Module):
     https://sites.google.com/view/perception-cv4arvr/blazeface
     """
 
-    def __init__(self):
+    def __init__(self, channels=24):
         super(BlazeFace, self).__init__()
         # input..128x128
         self.features = nn.Sequential(
-            nn.Conv2d(3, 24, kernel_size=3, stride=2, padding=1, bias=True), # pix=64
-            nn.BatchNorm2d(24),
+            nn.Conv2d(3, channels, kernel_size=3, stride=2, padding=1, bias=True), # pix=64
+            nn.BatchNorm2d(channels),
             nn.ReLU(inplace=True),
-            BlazeBlock(24, 24),
-            BlazeBlock(24, 24),
-            BlazeBlock(24, 48, stride=2), # pix=32
-            BlazeBlock(48, 48),
-            BlazeBlock(48, 48),
-            BlazeBlock(48, 24, 96, stride=2), # pix=16
-            BlazeBlock(96, 24, 96),
-            BlazeBlock(96, 24, 96)
+            BlazeBlock(channels, channels),
+            BlazeBlock(channels, channels),
+            BlazeBlock(channels, channels*2, stride=2), # pix=32
+            BlazeBlock(channels*2, channels*2),
+            BlazeBlock(channels*2, channels*2),
+            BlazeBlock(channels*2, channels, channels*4, stride=2), # pix=16
+            BlazeBlock(channels*4, channels, channels*4),
+            BlazeBlock(channels*4, channels, channels*4)
         )
         self.apply(initialize)
     def forward(self, x):
         h = self.features(x)
         return h
 
+    
 # for test
 net = BlazeFace()
 
@@ -132,13 +133,13 @@ class BlazeFaceExtra(nn.Module):
     the original paper
     https://sites.google.com/view/perception-cv4arvr/blazeface
     """
-    def __init__(self):
+    def __init__(self, channels=24):
         super(BlazeFaceExtra, self).__init__()
             # input..128x128
         self.features = nn.Sequential(
-                BlazeBlock(96, 24, 96, stride=2), # pix=8
-                BlazeBlock(96, 24, 96),
-                BlazeBlock(96, 24, 96)
+                BlazeBlock(channels*4, channels, channels*4, stride=2), # pix=8
+                BlazeBlock(channels*4, channels, channels*4),
+                BlazeBlock(channels*4, channels, channels*4)
         )
         self.apply(initialize)
     def forward(self, x):
@@ -164,17 +165,17 @@ class BlazeFaceExtra2(nn.Module):
 
 extras = BlazeFaceExtra()
 
-def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6]):
+def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6], channels=24):
     loc_layers = []
     conf_layers = []
     
     # added more layers.
-    loc_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*4, kernel_size=3, padding=1))]
-    conf_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*num_classes, kernel_size=3, padding=1))]
+    loc_layers += [nn.Sequential(nn.Conv2d(channels*4, bbox_aspect_num[0]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(channels*4, bbox_aspect_num[0]*num_classes, kernel_size=3, padding=1))]
     
     # 
-    loc_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[1]*4, kernel_size=3, padding=1))]
-    conf_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[1]*num_classes, kernel_size=3, padding=1))]
+    loc_layers += [nn.Sequential(nn.Conv2d(channels*4, bbox_aspect_num[1]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(channels*4, bbox_aspect_num[1]*num_classes, kernel_size=3, padding=1))]
     
     return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
 
@@ -443,17 +444,17 @@ class SSD(nn.Module):
     phase: inference
     - for inference and evaluation.
     """
-    def __init__(self, phase, cfg):
+    def __init__(self, phase, cfg, channels=24):
         super(SSD, self).__init__()
         
         self.phase = phase
         self.num_classes = cfg["num_classes"]
         
         # call SSD network
-        self.blaze = BlazeFace()
-        self.extra = BlazeFaceExtra()
+        self.blaze = BlazeFace(channels)
+        self.extra = BlazeFaceExtra(channels)
         # self.L2Norm = L2Norm()
-        self.loc, self.conf = make_loc_conf(self.num_classes, cfg["bbox_aspect_num"])
+        self.loc, self.conf = make_loc_conf(self.num_classes, cfg["bbox_aspect_num"], channels)
         
         # make Dbox
         dbox = DBox(cfg)
