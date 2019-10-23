@@ -21,7 +21,7 @@ import torch
 import torch.utils.data as data
 
 
-def make_datapath_list(rootpath, cls=None):
+def make_datapath_list(rootpath, cls=None, inc_negative=False):
     img_path_template = os.path.join(rootpath, "JPEGImages", "%s.jpg")
     anno_path_template = os.path.join(rootpath, "Annotations", "%s.xml")
     
@@ -29,10 +29,10 @@ def make_datapath_list(rootpath, cls=None):
     try:
         if not cls:
             train_id_names = os.path.join(rootpath, "ImageSets", "Main", "trainval.txt")
-            val_id_names = os.path.join(rootpath, "ImageSets", "Main", "val.txt")
+            val_id_names = os.path.join(rootpath, "ImageSets", "Main", "test.txt")
         else:
             train_id_names = os.path.join(rootpath, "ImageSets", "Main", cls+"_trainval.txt")
-            val_id_names = os.path.join(rootpath, "ImageSets", "Main", cls+"_val.txt")
+            val_id_names = os.path.join(rootpath, "ImageSets", "Main", cls+"_test.txt")
     except:        
         ("{} does not exist in dataset.".format(cls))
     
@@ -41,7 +41,7 @@ def make_datapath_list(rootpath, cls=None):
     
     for line in open(train_id_names):
         # print(line[-3])
-        if line[-3] == "-":
+        if line[-3] == "-"  and not inc_negative:
             continue
         file_id = line[0:6].strip()
         print(file_id)
@@ -54,7 +54,7 @@ def make_datapath_list(rootpath, cls=None):
     val_anno_list = list()
     
     for line in open(val_id_names):
-        if line[-3] == "-":
+        if line[-3] == "-" and not inc_negative:
             continue
         file_id = line[0:6].strip()
         img_path = (img_path_template % file_id)

@@ -45,7 +45,7 @@ train_dataset = VOCDataset(train_img_list, train_anno_list, phase = "train", tra
 val_dataset = VOCDataset(val_img_list, val_anno_list, phase="val", transform=DatasetTransform(
     input_size, color_mean), transform_anno=Anno_xml2list(voc_classes))
 
-batch_size = 64
+batch_size = 32
 
 train_dataloader = data.DataLoader(
     train_dataset, batch_size=batch_size, shuffle=True, collate_fn=od_collate_fn, num_workers=8)
@@ -75,13 +75,13 @@ targets[1]
 
 # # test with ssd model.
 
-# In[5]:
+# In[4]:
 
 
 from utils.blazeface import SSD
 
 
-# In[6]:
+# In[5]:
 
 
 # SSD300の設定
@@ -117,13 +117,13 @@ print("using:", device)
 print("set weights!")
 
 
-# In[7]:
+# In[6]:
 
 
 print(net)
 
 
-# In[8]:
+# In[7]:
 
 
 from utils.ssd_model import MultiBoxLoss
@@ -136,7 +136,7 @@ import torch.optim as optim
 optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
 
 
-# In[9]:
+# In[8]:
 
 
 def get_current_lr(epoch):
@@ -153,7 +153,7 @@ def adjust_learning_rate(optimizer, epoch):
         param_group['lr'] = lr
 
 
-# In[10]:
+# In[9]:
 
 
 # モデルを学習させる関数を作成
@@ -161,7 +161,7 @@ def train_model(net, dataloaders_dict, criterion, optimizer, num_epochs):
 
     # GPUが使えるかを確認
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print("used device：", device)
+    print("used device:", device)
 
     # ネットワークをGPUへ
     net.to(device)
@@ -272,7 +272,7 @@ def train_model(net, dataloaders_dict, criterion, optimizer, num_epochs):
 
 # # start training here
 
-# In[ ]:
+# In[10]:
 
 
 num_epochs = 200
