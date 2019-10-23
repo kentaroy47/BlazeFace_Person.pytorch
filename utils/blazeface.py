@@ -28,35 +28,37 @@ from itertools import product as product
 # # backbone
 # from blazeface-pytorch
 
-# In[2]:
-
-
 class BlazeBlock(nn.Module):
     def __init__(self, inp, oup1, oup2=None, stride=1, kernel_size=5):
         super(BlazeBlock, self).__init__()
         self.stride = stride
         assert stride in [1, 2]
-
+        
+        # double-block is used when oup2 is specified.
         self.use_double_block = oup2 is not None
+        # pooling is used when stride is not 1
         self.use_pooling = self.stride != 1
-
+        # change padding settings to insure pixel size is kept.
         if self.use_double_block:
             self.channel_pad = oup2 - inp
         else:
             self.channel_pad = oup1 - inp
-
         padding = (kernel_size - 1) // 2
-
+        
+        # mobile-net like convolution function is defined.
         self.conv1 = nn.Sequential(
             # dw
+            # https://discuss.pytorch.org/t/depthwise-and-separable-convolutions-in-pytorch/7315
+            # if groups=inp, it acts as depth wise convolution in pytorch
             nn.Conv2d(inp, inp, kernel_size=kernel_size, stride=stride, padding=padding, groups=inp, bias=True),
             nn.BatchNorm2d(inp),
-            # pw-linear
+            # piecewise-linear convolution.
             nn.Conv2d(inp, oup1, 1, 1, 0, bias=True),
             nn.BatchNorm2d(oup1),
         )
         self.act = nn.ReLU(inplace=True)
-
+        
+        # for latter layers, use resnet-like double convolution.
         if self.use_double_block:
             self.conv2 = nn.Sequential(
                 nn.ReLU(inplace=True),
@@ -83,6 +85,7 @@ class BlazeBlock(nn.Module):
             x = F.pad(x, (0, 0, 0, 0, 0, self.channel_pad), 'constant', 0)
         return self.act(h + x)
 
+# initialize weights.
 def initialize(module):
     # original implementation is unknown
     if isinstance(module, nn.Conv2d):
@@ -119,19 +122,11 @@ class BlazeFace(nn.Module):
         h = self.features(x)
         return h
 
-
-# In[3]:
-
-
+# for test
 net = BlazeFace()
-print(net)
-
 
 # # add extra blocks for detection and localization
-
-# In[4]:
-
-
+# originally from ssd.pytorch
 class BlazeFaceExtra(nn.Module):
     """Constructs a BlazeFace model
     the original paper
@@ -151,9 +146,8 @@ class BlazeFaceExtra(nn.Module):
         return h
     
 class BlazeFaceExtra2(nn.Module):
-    """Constructs a BlazeFace model
-    the original paper
-    https://sites.google.com/view/perception-cv4arvr/blazeface
+    """
+    for blazeface 256.
     """
     def __init__(self):
         super(BlazeFaceExtra2, self).__init__()
@@ -168,15 +162,7 @@ class BlazeFaceExtra2(nn.Module):
         h = self.features(x)
         return h
 
-# In[5]:
-
-
 extras = BlazeFaceExtra()
-print(extras)
-
-
-# In[6]:
-
 
 def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6]):
     loc_layers = []
@@ -208,8 +194,7 @@ def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6]):
 
 
 
-# binding boxを出力するクラス
-
+# class for generating binding boxes
 class DBox(object):
     def __init__(self, cfg):
         super(DBox, self).__init__()
@@ -359,10 +344,10 @@ def nms(boxes, scores, overlap=0.45, top_k=200):
     return keep, count
 
 
-# In[10]:
-
-
 class Detect(Function):
+    """
+    for inference.
+    """
     def __init__(self, conf_thresh=0.01, top_k=200, nms_thresh=0.45):
         self.softmax = nn.Softmax(dim=-1)
         self.conf_thresh = conf_thresh
@@ -428,6 +413,8 @@ class Detect(Function):
 
 def decode(loc, dbox_list):
     """
+    Decode boxes.
+    
     DBox(cx,cy,w,h)から回帰情報のΔを使い、
     BBox(xmin,ymin,xmax,ymax)方式に変換する。
     
@@ -449,6 +436,13 @@ def decode(loc, dbox_list):
 
 
 class SSD(nn.Module):
+    """
+    module for ssd-like blazeface.
+    phase: train
+    - for training.
+    phase: inference
+    - for inference and evaluation.
+    """
     def __init__(self, phase, cfg):
         super(SSD, self).__init__()
         
@@ -512,6 +506,10 @@ class SSD(nn.Module):
             return output
 
 class SSD256(nn.Module):
+    """
+    module for ssd-like blazeface with 256 pix input.
+    larger than the original inplementation.
+    """
     def __init__(self, phase, cfg):
         super(SSD256, self).__init__()
         
