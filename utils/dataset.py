@@ -44,7 +44,7 @@ def make_datapath_list(rootpath, cls=None, inc_negative=False):
         if line[-3] == "-"  and not inc_negative:
             continue
         file_id = line[0:6].strip()
-        print(file_id)
+        #print(file_id)
         img_path = (img_path_template % file_id)
         anno_path = (anno_path_template % file_id)
         train_img_list.append(img_path)
