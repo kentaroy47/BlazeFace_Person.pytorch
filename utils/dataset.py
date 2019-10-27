@@ -52,15 +52,17 @@ def make_datapath_list(rootpath, cls=None, inc_negative=False):
         
     val_img_list = list()
     val_anno_list = list()
-    
-    for line in open(val_id_names):
-        if line[-3] == "-" and not inc_negative:
-            continue
-        file_id = line[0:6].strip()
-        img_path = (img_path_template % file_id)
-        anno_path = (anno_path_template % file_id)
-        val_img_list.append(img_path)
-        val_anno_list.append(anno_path)
+    try:
+        for line in open(val_id_names):
+            if line[-3] == "-" and not inc_negative:
+                continue
+            file_id = line[0:6].strip()
+            img_path = (img_path_template % file_id)
+            anno_path = (anno_path_template % file_id)
+            val_img_list.append(img_path)
+            val_anno_list.append(anno_path)
+    except:
+        print("val not found")
         
     return train_img_list, train_anno_list, val_img_list, val_anno_list
 
