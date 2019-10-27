@@ -21,7 +21,7 @@ import torch
 import torch.utils.data as data
 
 
-def make_datapath_list(rootpath, cls=None, inc_negative=False):
+def make_datapath_list(rootpath, cls=None, inc_negative=False, VOC2012=False):
     img_path_template = os.path.join(rootpath, "JPEGImages", "%s.jpg")
     anno_path_template = os.path.join(rootpath, "Annotations", "%s.xml")
     
@@ -40,7 +40,7 @@ def make_datapath_list(rootpath, cls=None, inc_negative=False):
     train_anno_list = list()
     
     for line in open(train_id_names):
-        # print(line[-3])
+        #print(line[-3])
         if line[-3] == "-"  and not inc_negative:
             continue
         file_id = line[0:6].strip()
@@ -49,7 +49,21 @@ def make_datapath_list(rootpath, cls=None, inc_negative=False):
         anno_path = (anno_path_template % file_id)
         train_img_list.append(img_path)
         train_anno_list.append(anno_path)
-        
+    
+    if VOC2012:
+        train_img_list = list()
+        train_anno_list = list()
+        for line in open(train_id_names):
+            #print(line[-3])
+            if line[-3] == "-"  and not inc_negative:
+                continue
+            file_id = line[:-4].strip()
+            #print(file_id)
+            img_path = (img_path_template % file_id)
+            anno_path = (anno_path_template % file_id)
+            train_img_list.append(img_path)
+            train_anno_list.append(anno_path) 
+    
     val_img_list = list()
     val_anno_list = list()
     try:

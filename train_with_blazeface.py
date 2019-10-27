@@ -22,6 +22,8 @@ import pandas as pd
 # import dataset
 from utils.dataset import VOCDataset, DatasetTransform, make_datapath_list, Anno_xml2list, od_collate_fn
 
+if not os.path.isdir("weights"):
+    os.mkdir("weights")
 
 # # set up person only VOC dataset
 
@@ -29,11 +31,12 @@ from utils.dataset import VOCDataset, DatasetTransform, make_datapath_list, Anno
 
 
 # load files
+# load files
 vocpath = "../VOCdevkit/VOC2007"
-train_img_list, train_anno_list, val_img_list, val_anno_list = make_datapath_list(vocpath)
+train_img_list, train_anno_list, val_img_list, val_anno_list = make_datapath_list(vocpath, cls="person")
 
 vocpath = "../VOCdevkit/VOC2012"
-train_img_list2, train_anno_list2, _, _ = make_datapath_list(vocpath)
+train_img_list2, train_anno_list2, _, _ = make_datapath_list(vocpath, cls="person", VOC2012=True)
 
 train_img_list.extend(train_img_list2)
 train_anno_list.extend(train_anno_list2)
