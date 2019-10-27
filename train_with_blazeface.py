@@ -108,7 +108,7 @@ ssd_cfg = {
 }
 
 # default channels are 24.
-net = SSD(phase="train", cfg=ssd_cfg, channels=48)
+net = SSD(phase="train", cfg=ssd_cfg, channels=24)
 
 # SSDのweightsを設定
 
