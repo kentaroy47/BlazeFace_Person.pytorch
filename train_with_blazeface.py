@@ -38,6 +38,8 @@ train_img_list2, train_anno_list2, _, _ = make_datapath_list(vocpath)
 train_img_list.extend(train_img_list2)
 train_anno_list.extend(train_anno_list2)
 
+print(len(train_img_list))
+
 # make Dataset
 voc_classes = ['person']
 color_mean = (104, 117, 123)  # (BGR)の色の平均値
