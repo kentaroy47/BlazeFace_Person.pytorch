@@ -34,7 +34,7 @@ def make_datapath_list(rootpath, cls=None, inc_negative=False):
             train_id_names = os.path.join(rootpath, "ImageSets", "Main", cls+"_trainval.txt")
             val_id_names = os.path.join(rootpath, "ImageSets", "Main", cls+"_test.txt")
     except:        
-        ("{} does not exist in dataset.".format(cls))
+        val_id_names = os.path.join(rootpath, "ImageSets", "Main", "val.txt")
     
     train_img_list = list()
     train_anno_list = list()
