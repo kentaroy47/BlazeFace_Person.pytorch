@@ -8,16 +8,20 @@ import cv2  # OpenCVライブラリ
 import torch
 
 from utils.ssd_model import DataTransform
+import torch.nn as nn
 
-
-class SSDPredictShow():
+class SSDPredictShow(nn.Module):
     """SSDでの予測と画像の表示をまとめて行うクラス"""
 
-    def __init__(self, eval_categories, net, input_size=128):
+    def __init__(self, eval_categories, net, device):
+        super(SSDPredictShow, self).__init__()  # 親クラスのコンストラクタ実行
+        print(device)
         self.eval_categories = eval_categories  # クラス名
-        self.net = net  # SSDネットワーク
+        self.net = net.to(device)  # SSDネットワーク
+        self.device = device
 
         color_mean = (104, 117, 123)  # (BGR)の色の平均値
+        input_size = 128  # 画像のinputサイズを300×300にする
         self.transform = DataTransform(input_size, color_mean)  # 前処理クラス
 
     def show(self, image_file_path, data_confidence_level):
@@ -68,10 +72,10 @@ class SSDPredictShow():
         img_transformed, boxes, labels = self.transform(
             img, phase, "", "")  # アノテーションが存在しないので""にする。
         img = torch.from_numpy(
-            img_transformed[:, :, (2, 1, 0)]).permute(2, 0, 1)
+            img_transformed[:, :, (2, 1, 0)]).permute(2, 0, 1).to(self.device)
 
         # SSDで予測
-        self.net.eval()  # ネットワークを推論モードへ
+        #self.net.eval()  # ネットワークを推論モードへ
         x = img.unsqueeze(0)  # ミニバッチ化：torch.Size([1, 3, 300, 300])
 
         detections = self.net(x)

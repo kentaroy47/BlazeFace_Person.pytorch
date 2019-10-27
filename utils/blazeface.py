@@ -263,7 +263,7 @@ def nms(boxes, scores, overlap=0.45, top_k=200):
     # returnを定義
     count = 0
     keep = scores.new(scores.size(0)).zero_().long()
-    print(keep.size())
+    #print(keep.size())
     # keep: 確信度thresholdを超えたbboxの数
     
     # 各bboxの面積を計算
@@ -354,6 +354,7 @@ class Detect(Function):
         self.conf_thresh = conf_thresh
         self.top_k = top_k
         self.nms_thresh = nms_thresh
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
     def forward(self, loc_data, conf_data, dbox_list):
         """
@@ -377,9 +378,9 @@ class Detect(Function):
         # batch毎にループ
         for i in range(num_batch):
             # 1. LocとDBoxからBBox情報に変換
-            print("loc", loc_data.shape)
-            print("box", dbox_list.shape)
-            decoded_boxes = decode(loc_data[i], dbox_list)
+            #print("loc", loc_data.shape)
+            #print("box", dbox_list.shape)
+            decoded_boxes = decode(loc_data[i], dbox_list.to(self.device))
             
             # confのコピー
             conf_scores = conf_preds[i].clone()
