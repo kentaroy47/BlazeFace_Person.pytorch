@@ -5,6 +5,11 @@
 # BlazeFace_person_pytorch
 blazeface trained on pascal_voc person.
 
+- [x] SSD-like model
+- [x] Training script
+- [x] Eval script
+- [ ] Trained weights
+
 The training and inference is about 10x faster than SSD.
 
 The BlazeFace model is based on https://github.com/tkat0/PyTorch_BlazeFace, and localaization and detection layers are added from ssd.pytorch. 
