@@ -5,7 +5,7 @@
 # BlazeFace_person_pytorch
 Blazeface trained on pascal_voc person.
 
-This repo is an unofficial implementation of:
+This repo is an **unofficial** implementation of:
 
 `BlazeFace: Sub-millisecond Neural Face Detection on Mobile GPUs
 https://arxiv.org/abs/1907.05047`
@@ -16,12 +16,13 @@ The repo contains..
 - [x] Training script
 - [x] Eval script
 - [ ] Trained weights
+- [ ] CenterNet-like detection for more accuracy and faster opereations
 
-The training and inference is about 10x faster than SSD.
+The training and inference is **> 10x faster** than SSD.
 
 The BlazeFace model is based on https://github.com/tkat0/PyTorch_BlazeFace, and localaization and detection layers are added from ssd.pytorch. 
 
-Also the nms functions are from ssd.pytorch as well.
+Also the nms functions are borrowed from ssd.pytorch as well.
 
 Thank you!
 
