@@ -3,7 +3,14 @@
 ![person2](./sample/img2.png)
 
 # BlazeFace_person_pytorch
-blazeface trained on pascal_voc person.
+Blazeface trained on pascal_voc person.
+
+This repo is an unofficial implementation of:
+
+`BlazeFace: Sub-millisecond Neural Face Detection on Mobile GPUs
+https://arxiv.org/abs/1907.05047`
+
+The repo contains..
 
 - [x] SSD-like model
 - [x] Training script
