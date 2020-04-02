@@ -811,11 +811,15 @@ class SSD(nn.Module):
 class MultiBoxLoss(nn.Module):
     """SSDの損失関数のクラスです。"""
 
-    def __init__(self, jaccard_thresh=0.5, neg_pos=3, device='cpu'):
+    def __init__(self, jaccard_thresh=0.5, neg_pos=3, focal=False, device='cpu'):
         super(MultiBoxLoss, self).__init__()
         self.jaccard_thresh = jaccard_thresh  # 0.5 関数matchのjaccard係数の閾値
         self.negpos_ratio = neg_pos  # 3:1 Hard Negative Miningの負と正の比率
         self.device = device  # CPUとGPUのいずれで計算するのか
+        self.floss = focal
+        if focal:
+            from utils.focalloss import FocalLoss
+            self.focal = FocalLoss()
 
     def forward(self, predictions, targets):
         """
@@ -901,81 +905,48 @@ class MultiBoxLoss(nn.Module):
         batch_conf = conf_data.view(-1, num_classes)
 
         # クラス予測の損失を関数を計算(reduction='none'にして、和をとらず、次元をつぶさない)
-        loss_c = F.cross_entropy(
-            batch_conf, conf_t_label.view(-1), reduction='none')
+        if not self.floss:
+            loss_c = F.cross_entropy(
+                batch_conf, conf_t_label.view(-1), reduction='none')
+            
+            num_pos = pos_mask.long().sum(1, keepdim=True)  # ミニバッチごとの物体クラス予測の数
+            loss_c = loss_c.view(num_batch, -1)  # torch.Size([num_batch, 8732])
+            loss_c[pos_mask] = 0  # 物体を発見したDBoxは損失0とする
 
-        # -----------------
-        # これからNegative DBoxのうち、Hard Negative Miningで抽出するものを求めるマスクを作成します
-        # -----------------
+            # Hard Negative Miningを実施する
+            # 各DBoxの損失の大きさloss_cの順位であるidx_rankを求める
+            _, loss_idx = loss_c.sort(1, descending=True)
+            _, idx_rank = loss_idx.sort(1)
 
-        # 物体発見したPositive DBoxの損失を0にする
-        # （注意）物体はlabelが1以上になっている。ラベル0は背景。
-        num_pos = pos_mask.long().sum(1, keepdim=True)  # ミニバッチごとの物体クラス予測の数
-        loss_c = loss_c.view(num_batch, -1)  # torch.Size([num_batch, 8732])
-        loss_c[pos_mask] = 0  # 物体を発見したDBoxは損失0とする
+            num_neg = torch.clamp(num_pos*self.negpos_ratio, max=num_dbox)
 
-        # Hard Negative Miningを実施する
-        # 各DBoxの損失の大きさloss_cの順位であるidx_rankを求める
-        _, loss_idx = loss_c.sort(1, descending=True)
-        _, idx_rank = loss_idx.sort(1)
+            # idx_rankは各DBoxの損失の大きさが上から何番目なのかが入っている
+            # 背景のDBoxの数num_negよりも、順位が低い（すなわち損失が大きい）DBoxを取るマスク作成
+            # torch.Size([num_batch, 8732])
+            neg_mask = idx_rank < (num_neg).expand_as(idx_rank)
 
-        # （注釈）
-        # 実装コードがかなり特殊で直感的ではないです。
-        # 上記2行は、要は各DBoxに対して、損失の大きさが何番目なのかの情報を
-        # 変数idx_rankとして高速に取得したいというコードです。
-        #
-        # DBOXの損失値の大きい方から降順に並べ、DBoxの降順のindexをloss_idxに格納。
-        # 損失の大きさloss_cの順位であるidx_rankを求める。
-        # ここで、
-        # 降順になった配列indexであるloss_idxを、0から8732まで昇順に並べ直すためには、
-        # 何番目のloss_idxのインデックスをとってきたら良いのかを示すのが、idx_rankである。
-        # 例えば、
-        # idx_rankの要素0番目 = idx_rank[0]を求めるには、loss_idxの値が0の要素、
-        # つまりloss_idx[?}=0 の、?は何番かを求めることになる。ここで、? = idx_rank[0]である。
-        # いま、loss_idx[?]=0の0は、元のloss_cの要素の0番目という意味である。
-        # つまり?は、元のloss_cの要素0番目は、降順に並び替えられたloss_idxの何番目ですか
-        # を求めていることになり、 結果、
-        # ? = idx_rank[0] はloss_cの要素0番目が、降順の何番目かを示すことになる。
+            pos_idx_mask = pos_mask.unsqueeze(2).expand_as(conf_data)
+            neg_idx_mask = neg_mask.unsqueeze(2).expand_as(conf_data)
 
-        # 背景のDBoxの数num_negを決める。HardNegative Miningにより、
-        # 物体発見のDBoxの数num_posの3倍（self.negpos_ratio倍）とする。
-        # ただし、万が一、DBoxの数を超える場合は、DBoxの数を上限とする
-        num_neg = torch.clamp(num_pos*self.negpos_ratio, max=num_dbox)
+            # conf_dataからposとnegだけを取り出してconf_hnmにする。形はtorch.Size([num_pos+num_neg, 21])
+            conf_hnm = conf_data[(pos_idx_mask+neg_idx_mask).gt(0)
+                                 ].view(-1, num_classes)
 
-        # idx_rankは各DBoxの損失の大きさが上から何番目なのかが入っている
-        # 背景のDBoxの数num_negよりも、順位が低い（すなわち損失が大きい）DBoxを取るマスク作成
-        # torch.Size([num_batch, 8732])
-        neg_mask = idx_rank < (num_neg).expand_as(idx_rank)
+            conf_t_label_hnm = conf_t_label[(pos_mask+neg_mask).gt(0)]
 
-        # -----------------
-        # （終了）これからNegative DBoxのうち、Hard Negative Miningで抽出するものを求めるマスクを作成します
-        # -----------------
+            # confidenceの損失関数を計算（要素の合計=sumを求める）
+            if not self.floss:
+                loss_c = F.cross_entropy(conf_hnm, conf_t_label_hnm, reduction='sum')
+            else:
+                loss_c = self.focal(conf_hnm, conf_t_label_hnm)
 
-        # マスクの形を整形し、conf_dataに合わせる
-        # pos_idx_maskはPositive DBoxのconfを取り出すマスクです
-        # neg_idx_maskはHard Negative Miningで抽出したNegative DBoxのconfを取り出すマスクです
-        # pos_mask：torch.Size([num_batch, 8732])→pos_idx_mask：torch.Size([num_batch, 8732, 21])
-        pos_idx_mask = pos_mask.unsqueeze(2).expand_as(conf_data)
-        neg_idx_mask = neg_mask.unsqueeze(2).expand_as(conf_data)
+            # 物体を発見したBBoxの数N（全ミニバッチの合計）で損失を割り算
+            N = num_pos.sum()
+            loss_l /= N
+            loss_c /= N
+        else:
+            loss_c = self.focal(batch_conf, conf_t_label.view(-1))
 
-        # conf_dataからposとnegだけを取り出してconf_hnmにする。形はtorch.Size([num_pos+num_neg, 21])
-        conf_hnm = conf_data[(pos_idx_mask+neg_idx_mask).gt(0)
-                             ].view(-1, num_classes)
-        # （注釈）gtは greater than (>)の略称。これでmaskが1のindexを取り出す。
-        # pos_idx_mask+neg_idx_maskは足し算だが、indexへのmaskをまとめているだけである。
-        # つまり、posであろうがnegであろうが、マスクが1のものを足し算で一つのリストにし、それをgtで取得
-
-        # 同様に教師データであるconf_t_labelからposとnegだけを取り出してconf_t_label_hnmに
-        # 形はtorch.Size([pos+neg])になる
-        conf_t_label_hnm = conf_t_label[(pos_mask+neg_mask).gt(0)]
-
-        # confidenceの損失関数を計算（要素の合計=sumを求める）
-        loss_c = F.cross_entropy(conf_hnm, conf_t_label_hnm, reduction='sum')
-
-        # 物体を発見したBBoxの数N（全ミニバッチの合計）で損失を割り算
-        N = num_pos.sum()
-        loss_l /= N
-        loss_c /= N
 
         return loss_l, loss_c
 

@@ -124,7 +124,7 @@ class BlazeFace(nn.Module):
 
     
 # for test
-net = BlazeFace()
+#net = BlazeFace()
 
 # # add extra blocks for detection and localization
 # originally from ssd.pytorch
@@ -163,7 +163,7 @@ class BlazeFaceExtra2(nn.Module):
         h = self.features(x)
         return h
 
-extras = BlazeFaceExtra()
+#extras = BlazeFaceExtra()
 
 def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6], channels=24):
     loc_layers = []
