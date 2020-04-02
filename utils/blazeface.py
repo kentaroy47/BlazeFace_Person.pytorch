@@ -108,11 +108,11 @@ class BlazeFace(nn.Module):
             nn.Conv2d(3, channels, kernel_size=3, stride=2, padding=1, bias=True), # pix=64
             nn.BatchNorm2d(channels),
             nn.ReLU(inplace=True),
-            BlazeBlock(channels, channels),
-            BlazeBlock(channels, channels),
-            BlazeBlock(channels, channels*2, stride=2), # pix=32
-            BlazeBlock(channels*2, channels*2),
-            BlazeBlock(channels*2, channels*2),
+            BlazeBlock(channels, channels, channels),
+            BlazeBlock(channels, channels, channels),
+            BlazeBlock(channels, channels*2, channels*2, stride=2), # pix=32
+            BlazeBlock(channels*2, channels*2, channels*2),
+            BlazeBlock(channels*2, channels*2, channels*2),
             BlazeBlock(channels*2, channels, channels*4, stride=2), # pix=16
             BlazeBlock(channels*4, channels, channels*4),
             BlazeBlock(channels*4, channels, channels*4)
