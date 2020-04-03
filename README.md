@@ -15,8 +15,9 @@ The repo contains..
 - [x] SSD-like model
 - [x] Training script
 - [x] Eval script
+- [x] Focal loss
 - [ ] Trained weights
-- [ ] CenterNet-like detection for more accuracy and faster opereations
+- [x] CenterNet-like detection for more accuracy and faster opereations. (Under dev).
 
 The training and inference is **> 10x faster** than SSD.
 
@@ -36,9 +37,9 @@ scikit-learn
 ## how to train
 Run:
 
-`python train_with_blazeface.py`
+`python train_BlazeFace.py`
 
-See Dataset_test_with_BlazeFace.ipynb for specifics.
+See train_BlazeFace.ipynb for specifics.
 
 `Dataset_test_with_BlazeFace128-VOC-allclasses.ipynb` runs all VOC classes, but doesn't get good accuracy at this point.
 

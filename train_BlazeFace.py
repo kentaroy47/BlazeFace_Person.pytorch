@@ -22,31 +22,53 @@ import pandas as pd
 # import dataset
 from utils.dataset import VOCDataset, DatasetTransform, make_datapath_list, Anno_xml2list, od_collate_fn
 
-if not os.path.isdir("weights"):
-    os.mkdir("weights")
-
-# # set up person only VOC dataset
 
 # In[2]:
 
 
+# make dirs
+os.makedirs("weights", exist_ok=True)
+os.makedirs("log", exist_ok=True)
+input_size = 128
+batch_size = 32
+
+# Blazeface channels
+channels = 64
+"""
+The original blazeface use channels=24. 
+However, it was not enough to detect persons in our dataset.
+Since detecting faces are quite a simple task compared to person detection, fewer channels were enabled.
+"""
+
+# Use focal loss or not
+focal = False
+
+# Use centernet-like Blazeface
+center = False
+
+
+# # set up person only VOC dataset
+
+# In[3]:
+
+
 # load files
-# load files
-vocpath = "../VOCdevkit/VOC2007"
+vocpath = os.path.join("..", "VOCdevkit", "VOC2007")
 train_img_list, train_anno_list, val_img_list, val_anno_list = make_datapath_list(vocpath, cls="person")
 
+# extend with VOC2012
 vocpath = "../VOCdevkit/VOC2012"
 train_img_list2, train_anno_list2, _, _ = make_datapath_list(vocpath, cls="person", VOC2012=True)
 
 train_img_list.extend(train_img_list2)
 train_anno_list.extend(train_anno_list2)
 
-print(len(train_img_list))
-
 # make Dataset
 voc_classes = ['person']
 color_mean = (104, 117, 123)  # (BGR)の色の平均値
-input_size = 128  # 画像のinputサイズを300×300にする
+
+print("trainlist: ", len(train_img_list))
+print("vallist: ", len(val_img_list))
 
 ## DatasetTransformを適応
 transform = DatasetTransform(input_size, color_mean)
@@ -55,8 +77,6 @@ transform_anno = Anno_xml2list(voc_classes)
 train_dataset = VOCDataset(train_img_list, train_anno_list, phase = "train", transform=transform, transform_anno = transform_anno)
 val_dataset = VOCDataset(val_img_list, val_anno_list, phase="val", transform=DatasetTransform(
     input_size, color_mean), transform_anno=Anno_xml2list(voc_classes))
-
-batch_size = 32
 
 train_dataloader = data.DataLoader(
     train_dataset, batch_size=batch_size, shuffle=True, collate_fn=od_collate_fn, num_workers=8)
@@ -67,7 +87,7 @@ val_dataloader = data.DataLoader(
 dataloaders_dict = {"train": train_dataloader, "val": val_dataloader}
 
 
-# In[3]:
+# In[4]:
 
 
 # check operation
@@ -78,7 +98,7 @@ print(len(targets))
 print(targets[1].shape)  # check targets
 
 
-# In[4]:
+# In[5]:
 
 
 targets[1]
@@ -86,29 +106,39 @@ targets[1]
 
 # # test with ssd model.
 
-# In[4]:
+# In[6]:
 
 
-from utils.blazeface import SSD
+if input_size==256:
+    from utils.blazeface import SSD256 as SSD
+    ssd_cfg = {
+        'num_classes': 2,  # 背景クラスを含めた合計クラス数
+        'input_size': input_size,  # 画像の入力サイズ
+        'bbox_aspect_num': [4, 6],  # 出力するDBoxのアスペクト比の種類
+        'feature_maps': [16, 8],  # 各sourceの画像サイズ
+        'steps': [8, 16],  # DBOXの大きさを決める
+        'min_sizes': [16, 32],  # DBOXの大きさを決める
+        'max_sizes': [32, 100],  # DBOXの大きさを決める
+        'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
+    }
+elif input_size==128:
+    from utils.blazeface import SSD
+    ssd_cfg = {
+        'num_classes': 2,  # 背景クラスを含めた合計クラス数
+        'input_size': 128,  # 画像の入力サイズ
+        'bbox_aspect_num': [4, 6],  # 出力するDBoxのアスペクト比の種類
+        'feature_maps': [16, 8],  # 各sourceの画像サイズ
+        'steps': [4, 8],  # DBOXの大きさを決める
+        'min_sizes': [30, 60],  # DBOXの大きさを決める
+        'max_sizes': [60, 128],  # DBOXの大きさを決める
+        'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
+        }
 
 
-# In[5]:
+# In[7]:
 
 
-# SSD300の設定
-ssd_cfg = {
-    'num_classes': 2,  # 背景クラスを含めた合計クラス数
-    'input_size': 128,  # 画像の入力サイズ
-    'bbox_aspect_num': [4, 6],  # 出力するDBoxのアスペクト比の種類
-    'feature_maps': [16, 8],  # 各sourceの画像サイズ
-    'steps': [4, 8],  # DBOXの大きさを決める
-    'min_sizes': [30, 60],  # DBOXの大きさを決める
-    'max_sizes': [60, 128],  # DBOXの大きさを決める
-    'aspect_ratios': [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
-}
-
-# default channels are 24.
-net = SSD(phase="train", cfg=ssd_cfg, channels=24)
+net = SSD(phase="train", cfg=ssd_cfg, channels=channels)
 
 # SSDのweightsを設定
 
@@ -129,31 +159,31 @@ print("using:", device)
 print("set weights!")
 
 
-# In[6]:
+# In[8]:
 
 
 print(net)
 
 
-# In[7]:
+# In[9]:
 
 
 from utils.ssd_model import MultiBoxLoss
 
 # define loss
-criterion = MultiBoxLoss(jaccard_thresh=0.5,neg_pos=4, device=device)
+criterion = MultiBoxLoss(jaccard_thresh=0.5,neg_pos=3, device=device, focal=focal)
 
 # optim
 import torch.optim as optim
-optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4)
+optimizer = optim.Adam(net.parameters(), lr=1e-4, weight_decay=5e-4)
 
 
-# In[8]:
+# In[10]:
 
 
 def get_current_lr(epoch):
-    lr = 1e-3
-    for i,lr_decay_epoch in enumerate([120,180]):
+    lr = 1e-4
+    for i,lr_decay_epoch in enumerate([80,120]):
         if epoch >= lr_decay_epoch:
             lr *= 0.1
     return lr
@@ -165,7 +195,7 @@ def adjust_learning_rate(optimizer, epoch):
         param_group['lr'] = lr
 
 
-# In[9]:
+# In[11]:
 
 
 # モデルを学習させる関数を作成
@@ -173,7 +203,7 @@ def train_model(net, dataloaders_dict, criterion, optimizer, num_epochs):
 
     # GPUが使えるかを確認
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print("used device:", device)
+    print("used device：", device)
 
     # ネットワークをGPUへ
     net.to(device)
@@ -271,40 +301,24 @@ def train_model(net, dataloaders_dict, criterion, optimizer, num_epochs):
                      'train_loss': epoch_train_loss, 'val_loss': epoch_val_loss}
         logs.append(log_epoch)
         df = pd.DataFrame(logs)
-        df.to_csv("log_output.csv")
+        df.to_csv("log/log_output.csv")
 
         epoch_train_loss = 0.0  # epochの損失和
         epoch_val_loss = 0.0  # epochの損失和
 
         # ネットワークを保存する
         if ((epoch+1) % 10 == 0):
-            torch.save(net.state_dict(), 'weights/blazeface128_' +
+            torch.save(net.state_dict(), 'weights/blazeface{}_'.format(input_size) +
                        str(epoch+1) + '.pth')
 
 
 # # start training here
 
-# In[10]:
+# In[ ]:
 
 
-num_epochs = 200
+num_epochs = 150
 train_model(net, dataloaders_dict, criterion, optimizer, num_epochs=num_epochs)
 
 
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+# That's all :)
