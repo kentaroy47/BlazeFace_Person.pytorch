@@ -150,13 +150,13 @@ class BlazeFaceExtra2(nn.Module):
     """
     for blazeface 256.
     """
-    def __init__(self):
+    def __init__(self, channels=24):
         super(BlazeFaceExtra2, self).__init__()
             # input..128x128
         self.features = nn.Sequential(
-                BlazeBlock(96, 48, 192, stride=2), # pix=8
-                BlazeBlock(192, 48, 192),
-                BlazeBlock(192, 48, 192)
+                BlazeBlock(channels*4, channels*2, channels*8, stride=2), # pix=8
+                BlazeBlock(channels*8, channels*2, channels*8),
+                BlazeBlock(channels*8, channels*2, channels*8)
         )
         self.apply(initialize)
     def forward(self, x):
@@ -179,17 +179,17 @@ def make_loc_conf(num_classes=2, bbox_aspect_num=[6, 6], channels=24):
     
     return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
 
-def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6]):
+def make_loc_conf256(num_classes=2, bbox_aspect_num=[6, 6], channels=24):
     loc_layers = []
     conf_layers = []
     
     # added more layers.
-    loc_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*4, kernel_size=3, padding=1))]
-    conf_layers += [nn.Sequential(nn.Conv2d(96, bbox_aspect_num[0]*num_classes, kernel_size=3, padding=1))]
+    loc_layers += [nn.Sequential(nn.Conv2d(channels*4, bbox_aspect_num[0]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(channels*4, bbox_aspect_num[0]*num_classes, kernel_size=3, padding=1))]
     
     # 
-    loc_layers += [nn.Sequential(nn.Conv2d(192, bbox_aspect_num[1]*4, kernel_size=3, padding=1))]
-    conf_layers += [nn.Sequential(nn.Conv2d(192, bbox_aspect_num[1]*num_classes, kernel_size=3, padding=1))]
+    loc_layers += [nn.Sequential(nn.Conv2d(channels*8, bbox_aspect_num[1]*4, kernel_size=3, padding=1))]
+    conf_layers += [nn.Sequential(nn.Conv2d(channels*8, bbox_aspect_num[1]*num_classes, kernel_size=3, padding=1))]
                 
     return nn.ModuleList(loc_layers), nn.ModuleList(conf_layers)
 
@@ -512,18 +512,18 @@ class SSD256(nn.Module):
     module for ssd-like blazeface with 256 pix input.
     larger than the original inplementation.
     """
-    def __init__(self, phase, cfg):
+    def __init__(self, phase, cfg, channels=24):
         super(SSD256, self).__init__()
         
         self.phase = phase
         self.num_classes = cfg["num_classes"]
         
         # call SSD network
-        self.blaze = BlazeFace()
-        self.extra = BlazeFaceExtra()
-        self.extra2 = BlazeFaceExtra2()
+        self.blaze = BlazeFace(channels=channels)
+        self.extra = BlazeFaceExtra(channels=channels)
+        self.extra2 = BlazeFaceExtra2(channels=channels)
         # self.L2Norm = L2Norm()
-        self.loc, self.conf = make_loc_conf256(self.num_classes, cfg["bbox_aspect_num"])
+        self.loc, self.conf = make_loc_conf256(self.num_classes, cfg["bbox_aspect_num"], channels=channels)
         
         # make Dbox
         dbox = DBox(cfg)
